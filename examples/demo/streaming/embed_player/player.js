@@ -1,3 +1,6 @@
+let srctf="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"
+let srcsd="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd"
+
 const SESSION_STATUS = Flashphoner.constants.SESSION_STATUS;
 const STREAM_STATUS = Flashphoner.constants.STREAM_STATUS;
 const STREAM_EVENT = Flashphoner.constants.STREAM_EVENT;
@@ -8,14 +11,29 @@ let remoteVideo;
 let playingStream;
 let isStopped = true;
 
+
 let autoplay = eval(getUrlParam("autoplay")) || false;
 let resolution = getUrlParam("resolution");
 let mediaProviders = getUrlParam("mediaProviders") || "";
-let streamName = getUrlParam("streamName") || "streamName";
-let urlServer = getUrlParam("urlServer") || setURL();
-
+// let streamName = getUrlParam("streamName") || "streamName";
+//let urlServer = getUrlParam("urlServer") || setURL();
+let streamName = "rtsp://admin:123456@tc-mega254-1.kddns.info:5544/chID=2&streamType=main"
+let urlServer = "wss://192.168.20.166:8443";
 // Will always use a standard video controls
 let useVideoControls = true;
+
+// 新增 for tensorflow
+const constraints = {
+    video: true
+};
+let liveView = undefined;
+let _vedio = undefined;
+let children = [];
+let session = undefined
+var model =undefined;
+cocoSsd.load().then(function (loadedModel) {
+    model = loadedModel;
+  });
 
 function init_page() {
     //init api
@@ -24,6 +42,7 @@ function init_page() {
         if (Flashphoner.getMediaProviders()[0] == "WSPlayer") {
             throw new Error("The WSPlayer mediaProvider is deprecated");
         }
+
     } catch(e) {
         document.getElementById("status").innerHTML = e.message;
         hideItem('preloader');
@@ -84,7 +103,7 @@ function start() {
 function createSession() {
     //check if we already have session
     if (Flashphoner.getSessions().length > 0) {
-        let session = Flashphoner.getSessions()[0];
+        session = Flashphoner.getSessions()[0];
         playStream(session);
         return;
     }
@@ -136,12 +155,17 @@ function playStream(session) {
         let video = document.getElementById(stream.id());
         if (!video.hasListeners) {
             video.hasListeners = true;
-            setResizeHandler(video, stream, playWidth);
+            setResizeHandler(video, stream, playWidth); //新增 resize 的事件
+            setDataHandler(video, stream, playWidth); //新增 開啟接收data 的事件
+            setSnapshotCompletedHandler(video, stream, playWidth); //新增 開啟接收data 的事件
+
             if (Browser.isSafariWebRTC()) {
                 setWebkitEventHandlers(video);
             } else {
                 setEventHandlers(video);
             }
+        //    remoteVideo.srcObj = stream;
+        //    video.addEventListener('loadeddata', predictWebcam);
         }
     }).on(STREAM_STATUS.PLAYING, function (stream) {
         // Android Firefox may pause stream playback via MSE even if video element is muted
@@ -153,6 +177,19 @@ function playStream(session) {
         }
         setStatus(STREAM_STATUS.PLAYING);
         onStarted();
+        _vedio = document.getElementById(stream.id());
+        _vedio.onloadeddata = predictIframe;
+        console.log("stream id: " + stream.id());
+        // try{
+        //     navigator.mediaDevices.getUserMedia(stream).then(function(indexstream) {
+        //         video.srcObject = indexstream;
+        //         video.addEventListener('loadeddata', predictVideo);
+        //         console.log("取得 vedio");
+        //       });
+        // }catch(e){
+        //     console.log(e);
+        //     return;
+        // }
     }).on(STREAM_STATUS.STOPPED, function () {
         setStatus(STREAM_STATUS.STOPPED);
         onStopped();
@@ -168,7 +205,12 @@ function playStream(session) {
         } else if (STREAM_EVENT_TYPE.RESIZE === streamEvent.type) {
             console.log("New video size: " + streamEvent.payload.streamerVideoWidth + "x" + streamEvent.payload.streamerVideoHeight);
         }
+    }).on(STREAM_EVENT_TYPE.DATA, function(stream){
+        console.log("Vedio event(data)" + stream);
+    }).on(STREAM_EVENT_TYPE.SNAPSHOT_COMPLETED, function(stream){
+        console.log("Vedio event(snapshot completed)" + stream);
     });
+    console.log("playingStream start playing ----> ")
     playingStream.play();
 }
 
@@ -202,6 +244,16 @@ function setResizeHandler(video, stream, playWidth) {
         }
     });
 }
+
+
+// Data bound to the stream are received, stream 到 ifram後更改vedio視窗的值
+function setDataHandler(video, stream, playWidth) {
+    return ;
+}
+function  setSnapshotCompletedHandler(video, stream, playWidth){
+    return ;
+}
+
 
 // iOS/MacOS handlers for fullscreen issues
 function setWebkitEventHandlers(video) {
@@ -321,4 +373,45 @@ function hideItem(id) {
     if (item) {
         item.style.display = "none";
     }
+}
+
+function predictIframe(){
+    model.detect(_vedio).then(function (predictions) {
+        liveView = document.getElementById("remoteVideo");
+        console.log('Predictions: ', predictions);
+        // Remove any highlighting we did previous frame.
+        for (let i = 0; i < children.length; i++) {
+            liveView.removeChild(children[i]);
+        }
+        children.splice(0);
+        
+        // Now lets loop through predictions and draw them to the live view if
+        // they have a high confidence score.
+        for (let n = 0; n < predictions.length; n++) {
+        // If we are over 66% sure we are sure we classified it right, draw it!
+            if (predictions[n].score > 0.66) {
+                const p = document.createElement('p');
+                p.innerText = predictions[n].class  + ' - with ' 
+                    + Math.round(parseFloat(predictions[n].score) * 100) 
+                    + '% confidence.';
+                p.style = 'margin-left: ' + predictions[n].bbox[0] + 'px; margin-top: '
+                    + (predictions[n].bbox[1] - 10) + 'px; width: ' 
+                    + (predictions[n].bbox[2] - 10) + 'px; top: 0; left: 0;';
+
+                const highlighter = document.createElement('div');
+                highlighter.setAttribute('class', 'highlighter');
+                highlighter.style = 'left: ' + predictions[n].bbox[0] + 'px; top: '
+                    + predictions[n].bbox[1] + 'px; width: ' 
+                    + predictions[n].bbox[2] + 'px; height: '
+                    + predictions[n].bbox[3] + 'px;';
+
+                liveView.appendChild(highlighter);
+                liveView.appendChild(p);
+                children.push(highlighter);
+                children.push(p);
+            }
+        }
+        // Call this function again to keep predicting when the browser is ready.
+        window.requestAnimationFrame(predictIframe);
+    });
 }

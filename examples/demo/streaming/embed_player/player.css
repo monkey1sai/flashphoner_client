@@ -7,13 +7,14 @@ body {
     padding: 0;
     margin: 0;
 }
-
+/* 點+vedio 代表 class=video */
 .video {
     margin: 0px auto;
     height: 100%;
     background: #000;
 }
 
+/* 沒有加的vedio 代表 <video></video> */
 .display, video, canvas, object {
     width: 100%;
     height: 100%;
@@ -86,6 +87,23 @@ canvas:-moz-full-screen {
     margin: -40px 0 0 -40px;
 }
 
+.display p {
+    position: absolute;
+    padding: 5px;
+    background-color: rgba(255, 111, 0, 0.85);
+    color: #FFF;
+    border: 1px dashed rgba(255, 255, 255, 0.7);
+    z-index: 2;
+    font-size: 12px;
+  }
+  
+  .highlighter {
+    background: rgba(0, 255, 0, 0.25);
+    border: 1px dashed #fff;
+    z-index: 1;
+    position: absolute;
+  }
+  
 @keyframes spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }

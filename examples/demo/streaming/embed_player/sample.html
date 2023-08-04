@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="../../dependencies/bootstrap/font-awesome/css/font-awesome.min.css">
 
     <title>Player</title>
+
     <script src="https://use.fontawesome.com/6715bc7ce8.js"></script>
     <script type="text/javascript" src="../../dependencies/jquery/jquery-1.12.0.js"></script>
     <script type="text/javascript" src="../../dependencies/jquery/jquery-ui.js"></script>
@@ -34,21 +35,21 @@
             </div>
             <div class="col-md-5 col-lg-6 text-center">
                 <form id="form" class="form-horizontal" role="form" style="margin: 0 auto;">
-                    <div id="connForm" class="form-group">
+                    <div id="connForm" class="form-group"> <!-- Server-->
                         <label for="url" class="col-sm-2 control-label">Server</label>
                         <div class="col-sm-10">
                             <input type="text" class="form-control" id="url" style="width: 89%; margin-right: 1%; float: left;">
                             <a href="#" data-toggle="tooltip" title="Websocket address of your WCS server"><i class="fa fa-question-circle" aria-hidden="true"></i></a>
                         </div>
                     </div>
-                    <div id="playForm" class="form-group">
-                        <label for="streamName" class="col-sm-2 control-label">Stream</label>
+                    <div id="playForm" class="form-group">          <!-- Stream-->
+                        <label for="streamName" class="col-sm-2 control-label">Stream</label> 
                         <div class="col-sm-10">
                             <input type="text" class="form-control" id="streamName" style="width: 89%; margin-right: 1%; float: left;">
                             <a href="#" data-toggle="tooltip" title="Name of stream or RTSP URL"><i class="fa fa-question-circle" aria-hidden="true"></i></a>
                         </div>
                     </div>
-                    <div id="providerForm" class="form-group">
+                    <div id="providerForm" class="form-group"><!-- WebRTC MSE-->
                         <label class="col-sm-2 control-label">Tech</label>
                         <div class="col-sm-10">
                             <ul id="sortable">
@@ -65,7 +66,7 @@
                     </div>
 
 
-                    <div class="form-group" style="margin-bottom: 110px">
+                    <div class="form-group" style="margin-bottom: 110px"><!-- code-->
                         <div class="col-sm-12 text-center test-now-button">
                             <button id="testBtn" type="button" class="btn btn-default">Test now</button>
                         </div>
@@ -74,13 +75,13 @@
             </div>
 
             <div class="clearfix"></div>
-            <div class="form-group text-left clearfix">
+            <div class="form-group text-left clearfix"><!-- code-->
             				<label for="codeTextArea" class="control-label">Code</label>
                 <div class="col-sm-12">
                 				<textarea class="form-control text-area-bg" id="codeTextArea" rows="4"></textarea>
                 </div>
             </div>
-				        <div class="form-group clearfix" style="margin-bottom: 110px">
+				        <div class="form-group clearfix" style="margin-bottom: 110px"><!-- 複製-->
                 <div class="col-sm-12 text-right">
                     <button id="clipboardBtn" type="button" class="btn btn-default">Copy to clipboard</button>
                 </div>

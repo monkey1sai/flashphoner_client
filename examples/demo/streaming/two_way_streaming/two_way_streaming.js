@@ -174,11 +174,16 @@ function playStream() {
         name: streamName,
         display: remoteVideo
     }).on(STREAM_STATUS.PENDING, function (stream) {
+        var dt =new Date();
+        console.log(dt.getTime());
         var video = document.getElementById(stream.id());
         if (!video.hasListeners) {
             video.hasListeners = true;
             video.addEventListener('resize', function (event) {
                 resizeVideo(event.target);
+            });
+            video.addEventListener('loadeddata', function (event) {
+                predictWebcam(event.target);
             });
         }
     }).on(STREAM_STATUS.PLAYING, function (stream) {
@@ -195,9 +200,15 @@ function playStream() {
             case STREAM_EVENT_TYPE.DATA:
                 addPayload(streamEvent.payload);
                 break;
+            case STREAM_EVENT_TYPE.SNAPSHOT_COMPLETED:
+                console.log("事件: SNAPSHOT_COMPLETED");
         }
         console.log("Received streamEvent ", streamEvent.type);
     }).play();
+}
+
+function predictWebcam(vedio) {
+    console.log("事件 loaddate: -------");
 }
 
 function addPayload(payload) {
