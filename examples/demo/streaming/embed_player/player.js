@@ -18,7 +18,7 @@ let mediaProviders = getUrlParam("mediaProviders") || "";
 // let streamName = getUrlParam("streamName") || "streamName";
 //let urlServer = getUrlParam("urlServer") || setURL();
 let streamName = "rtsp://admin:123456@tc-mega254-1.kddns.info:5544/chID=2&streamType=main"
-let urlServer = "wss://192.168.20.166:8443";
+let urlServer = "wss://demo.flashphoner.com:8443";
 // Will always use a standard video controls
 let useVideoControls = true;
 
@@ -177,19 +177,10 @@ function playStream(session) {
         }
         setStatus(STREAM_STATUS.PLAYING);
         onStarted();
+        //新增 _vedioc畫框結束事件 
         _vedio = document.getElementById(stream.id());
         _vedio.onloadeddata = predictIframe;
-        console.log("stream id: " + stream.id());
-        // try{
-        //     navigator.mediaDevices.getUserMedia(stream).then(function(indexstream) {
-        //         video.srcObject = indexstream;
-        //         video.addEventListener('loadeddata', predictVideo);
-        //         console.log("取得 vedio");
-        //       });
-        // }catch(e){
-        //     console.log(e);
-        //     return;
-        // }
+        console.log("(_vedio) set a stream id: " + stream.id());
     }).on(STREAM_STATUS.STOPPED, function () {
         setStatus(STREAM_STATUS.STOPPED);
         onStopped();
@@ -204,7 +195,10 @@ function playStream(session) {
             console.log("Not enough bandwidth, consider using lower video resolution or bitrate. Bandwidth " + (Math.round(networkBandwidth / 1000)) + " bitrate " + (Math.round(remoteBitrate / 1000)));
         } else if (STREAM_EVENT_TYPE.RESIZE === streamEvent.type) {
             console.log("New video size: " + streamEvent.payload.streamerVideoWidth + "x" + streamEvent.payload.streamerVideoHeight);
+        }else if(STREAM_EVENT_TYPE.SNAPSHOT_COMPLETED === streamEvent.type){
+            console.log("Vedio event(snapshot completed)");
         }
+        
     }).on(STREAM_EVENT_TYPE.DATA, function(stream){
         console.log("Vedio event(data)" + stream);
     }).on(STREAM_EVENT_TYPE.SNAPSHOT_COMPLETED, function(stream){
@@ -412,6 +406,10 @@ function predictIframe(){
             }
         }
         // Call this function again to keep predicting when the browser is ready.
+        // var dt = new Date();
+        // console.log(dt.toISOString() + "現在 playing stream id" + playingStream.id());
+        // _vedio = playingStream.id();
+        // _vedio.onloadeddata = predictIframe;
         window.requestAnimationFrame(predictIframe);
     });
 }
