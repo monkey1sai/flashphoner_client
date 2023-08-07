@@ -208,6 +208,93 @@ function playStream(session) {
     playingStream.play();
 }
 
+
+function plushStream(session) {
+    let playWidth = 0;
+    let platHeight = 0;
+    let options = {
+        name: streamName,
+        display: remoteVideo,
+        useControls: useVideoControls, 
+        cacheLocalResources: true,
+    };
+    if (resolution) {
+        playWidth = resolution.split("x")[0];
+        playHeight = resolution.split("x")[1];
+        options.constraints = {
+            video: {
+                width: playWidth,
+                height: playHeight
+            },
+            audio: true
+        };
+    }
+    if (autoplay) {
+        options.unmutePlayOnStart = false;
+    }
+    playingStream = session.createStream(options).on(STREAM_STATUS.PENDING, function (stream) {
+        if (Browser.isChrome()) {
+            // Hide a custom preloader in Chrome because there is a standard one with standard controls
+            hideItem('preloader');
+        }
+        let video = document.getElementById(stream.id());
+        if (!video.hasListeners) {
+            video.hasListeners = true;
+            setResizeHandler(video, stream, playWidth); //新增 resize 的事件
+            setDataHandler(video, stream, playWidth); //新增 開啟接收data 的事件
+            setSnapshotCompletedHandler(video, stream, playWidth); //新增 開啟接收data 的事件
+
+            if (Browser.isSafariWebRTC()) {
+                setWebkitEventHandlers(video);
+            } else {
+                setEventHandlers(video);
+            }
+        //    remoteVideo.srcObj = stream;
+        //    video.addEventListener('loadeddata', predictWebcam);
+        }
+    }).on(STREAM_STATUS.PLAYING, function (stream) {
+        // Android Firefox may pause stream playback via MSE even if video element is muted
+        if (Flashphoner.getMediaProviders()[0] == "MSE" && autoplay && Browser.isAndroidFirefox()) {
+            let video = document.getElementById(stream.id());
+            if (video && video.paused) {
+                video.play();
+            }
+        }
+        setStatus(STREAM_STATUS.PLAYING);
+        onStarted();
+        //新增 _vedioc畫框結束事件 
+        _vedio = document.getElementById(stream.id());
+        _vedio.onloadeddata = predictIframe;
+        console.log("(_vedio) set a stream id: " + stream.id());
+    }).on(STREAM_STATUS.STOPPED, function () {
+        setStatus(STREAM_STATUS.STOPPED);
+        onStopped();
+    }).on(STREAM_STATUS.FAILED, function(stream) {
+        setStatus(STREAM_STATUS.FAILED, stream);
+        onStopped();
+    }).on(STREAM_EVENT, function(streamEvent){
+        if (STREAM_EVENT_TYPE.NOT_ENOUGH_BANDWIDTH === streamEvent.type) {
+            let info = streamEvent.payload.info.split("/");
+            let remoteBitrate = info[0];
+            let networkBandwidth = info[1];
+            console.log("Not enough bandwidth, consider using lower video resolution or bitrate. Bandwidth " + (Math.round(networkBandwidth / 1000)) + " bitrate " + (Math.round(remoteBitrate / 1000)));
+        } else if (STREAM_EVENT_TYPE.RESIZE === streamEvent.type) {
+            console.log("New video size: " + streamEvent.payload.streamerVideoWidth + "x" + streamEvent.payload.streamerVideoHeight);
+        }else if(STREAM_EVENT_TYPE.SNAPSHOT_COMPLETED === streamEvent.type){
+            console.log("Vedio event(snapshot completed)");
+        }
+        
+    }).on(STREAM_EVENT_TYPE.DATA, function(stream){
+        console.log("Vedio event(data)" + stream);
+    }).on(STREAM_EVENT_TYPE.SNAPSHOT_COMPLETED, function(stream){
+        console.log("Vedio event(snapshot completed)" + stream);
+    });
+    console.log("playingStream start playing ----> ")
+    playingStream.play();
+}
+
+
+
 //show connection or remote stream status
 function setStatus(status, stream) {
     let statusField = document.getElementById("status");

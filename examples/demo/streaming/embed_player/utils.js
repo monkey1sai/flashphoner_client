@@ -58,6 +58,7 @@ function getUrlParam(name) {
     if (value.startsWith("rtsp://") || value.startsWith("rtmp://")) {
         return value.replace(/\@(?=.*\@)/g, '%40');
     }
+    console.log('getUrlParaName ' + 'name: ' +  name  + ', value: ' + value);
     return value;
 }
 
