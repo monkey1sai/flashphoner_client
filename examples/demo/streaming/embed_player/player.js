@@ -22,7 +22,7 @@ let urlServer = "wss://demo.flashphoner.com:8443";
 // Will always use a standard video controls
 let useVideoControls = true;
 
-// 新增 for tensorflow
+// 新增 ----- block1 --- for tensorflow
 const constraints = {
     video: true
 };
@@ -34,6 +34,15 @@ var model =undefined;
 cocoSsd.load().then(function (loadedModel) {
     model = loadedModel;
   });
+
+// 新增 ----- block2 --- for canvas
+
+var canvas;
+var canvStream;
+var localVideo;
+var predictStreaming;
+
+
 
 function init_page() {
     //init api
@@ -52,7 +61,8 @@ function init_page() {
 
     // Save video display element
     remoteVideo = document.getElementById("remoteVideo");
-
+    canvas = document.getElementById("canvas");
+    canvStream = createCanvasStream();
     // Init page elements
     onStopped();
 
@@ -208,93 +218,6 @@ function playStream(session) {
     playingStream.play();
 }
 
-
-function plushStream(session) {
-    let playWidth = 0;
-    let platHeight = 0;
-    let options = {
-        name: streamName,
-        display: remoteVideo,
-        useControls: useVideoControls, 
-        cacheLocalResources: true,
-    };
-    if (resolution) {
-        playWidth = resolution.split("x")[0];
-        playHeight = resolution.split("x")[1];
-        options.constraints = {
-            video: {
-                width: playWidth,
-                height: playHeight
-            },
-            audio: true
-        };
-    }
-    if (autoplay) {
-        options.unmutePlayOnStart = false;
-    }
-    playingStream = session.createStream(options).on(STREAM_STATUS.PENDING, function (stream) {
-        if (Browser.isChrome()) {
-            // Hide a custom preloader in Chrome because there is a standard one with standard controls
-            hideItem('preloader');
-        }
-        let video = document.getElementById(stream.id());
-        if (!video.hasListeners) {
-            video.hasListeners = true;
-            setResizeHandler(video, stream, playWidth); //新增 resize 的事件
-            setDataHandler(video, stream, playWidth); //新增 開啟接收data 的事件
-            setSnapshotCompletedHandler(video, stream, playWidth); //新增 開啟接收data 的事件
-
-            if (Browser.isSafariWebRTC()) {
-                setWebkitEventHandlers(video);
-            } else {
-                setEventHandlers(video);
-            }
-        //    remoteVideo.srcObj = stream;
-        //    video.addEventListener('loadeddata', predictWebcam);
-        }
-    }).on(STREAM_STATUS.PLAYING, function (stream) {
-        // Android Firefox may pause stream playback via MSE even if video element is muted
-        if (Flashphoner.getMediaProviders()[0] == "MSE" && autoplay && Browser.isAndroidFirefox()) {
-            let video = document.getElementById(stream.id());
-            if (video && video.paused) {
-                video.play();
-            }
-        }
-        setStatus(STREAM_STATUS.PLAYING);
-        onStarted();
-        //新增 _vedioc畫框結束事件 
-        _vedio = document.getElementById(stream.id());
-        _vedio.onloadeddata = predictIframe;
-        console.log("(_vedio) set a stream id: " + stream.id());
-    }).on(STREAM_STATUS.STOPPED, function () {
-        setStatus(STREAM_STATUS.STOPPED);
-        onStopped();
-    }).on(STREAM_STATUS.FAILED, function(stream) {
-        setStatus(STREAM_STATUS.FAILED, stream);
-        onStopped();
-    }).on(STREAM_EVENT, function(streamEvent){
-        if (STREAM_EVENT_TYPE.NOT_ENOUGH_BANDWIDTH === streamEvent.type) {
-            let info = streamEvent.payload.info.split("/");
-            let remoteBitrate = info[0];
-            let networkBandwidth = info[1];
-            console.log("Not enough bandwidth, consider using lower video resolution or bitrate. Bandwidth " + (Math.round(networkBandwidth / 1000)) + " bitrate " + (Math.round(remoteBitrate / 1000)));
-        } else if (STREAM_EVENT_TYPE.RESIZE === streamEvent.type) {
-            console.log("New video size: " + streamEvent.payload.streamerVideoWidth + "x" + streamEvent.payload.streamerVideoHeight);
-        }else if(STREAM_EVENT_TYPE.SNAPSHOT_COMPLETED === streamEvent.type){
-            console.log("Vedio event(snapshot completed)");
-        }
-        
-    }).on(STREAM_EVENT_TYPE.DATA, function(stream){
-        console.log("Vedio event(data)" + stream);
-    }).on(STREAM_EVENT_TYPE.SNAPSHOT_COMPLETED, function(stream){
-        console.log("Vedio event(snapshot completed)" + stream);
-    });
-    console.log("playingStream start playing ----> ")
-    playingStream.play();
-}
-
-
-
 //show connection or remote stream status
 function setStatus(status, stream) {
     let statusField = document.getElementById("status");
@@ -326,7 +249,6 @@ function setResizeHandler(video, stream, playWidth) {
     });
 }
 
-
 // Data bound to the stream are received, stream 到 ifram後更改vedio視窗的值
 function setDataHandler(video, stream, playWidth) {
     return ;
@@ -334,7 +256,6 @@ function setDataHandler(video, stream, playWidth) {
 function  setSnapshotCompletedHandler(video, stream, playWidth){
     return ;
 }
-
 
 // iOS/MacOS handlers for fullscreen issues
 function setWebkitEventHandlers(video) {
@@ -499,4 +420,86 @@ function predictIframe(){
         // _vedio.onloadeddata = predictIframe;
         window.requestAnimationFrame(predictIframe);
     });
+}
+
+
+// 在此之前要先把 playing streming publish to this <canvas></canvas> !!!
+function createCanvasStream() {
+    var canvasContext = canvas.getContext("2d");
+    var canvasStream = canvas.captureStream(30);
+    mockVideoElement = document.createElement("video");
+    mockVideoElement.setAttribute("playsinline", "");
+    mockVideoElement.setAttribute("webkit-playsinline", "");
+    //mockVideoElement.src = '../../dependencies/media/test_movie.mp4';
+    mockVideoElement.loop = true;
+    mockVideoElement.muted = true;
+    //var useRequestAnimationFrame = $("#usedAnimFrame").is(':checked');
+    mockVideoElement.addEventListener("play", function () {
+        var $this = this;
+        (function loop() {
+            if (!$this.paused && !$this.ended) {
+                canvasContext.drawImage($this, 0, 0);
+                requestAnimationFrame(loop);
+                // if (useRequestAnimationFrame) {
+                //     requestAnimationFrame(loop);
+                // } else {
+                //     setTimeout(loop, 1000 / 30); // drawing at 30fps
+                // }
+            }
+        })();
+    }, 0);
+    // 移除影像
+    if (!$("#sendVideo").is(':checked')) {
+        canvasStream.removeTrack(canvasStream.getVideoTracks()[0]);
+    }
+    mockVideoElement.play();
+    // 建立聲音來源
+    mockVideoElement.muted = false;
+    try {
+        var audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    } catch (e) {
+        console.warn("Failed to create audio context");
+    }
+    var source = audioContext.createMediaElementSource(mockVideoElement);
+    var destination = audioContext.createMediaStreamDestination();
+    source.connect(destination);
+    canvasStream.addTrack(destination.stream.getAudioTracks()[0]);
+
+
+    if ($("#sendAudio").is(':checked')) {
+        mockVideoElement.muted = false;
+        try {
+            var audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        } catch (e) {
+            console.warn("Failed to create audio context");
+        }
+        var source = audioContext.createMediaElementSource(mockVideoElement);
+        var destination = audioContext.createMediaStreamDestination();
+        source.connect(destination);
+        canvasStream.addTrack(destination.stream.getAudioTracks()[0]);
+    }
+    return canvasStream;
+}
+
+function publishStream(session) {
+    var streamName = "detectorStreaming";
+    var constraints = getConstraints();
+
+    session.createStream({
+        name: streamName,
+        display: localVideo,
+    }).on(STREAM_STATUS.PUBLISHING, function (stream) {
+        setStatus("#publishStatus", STREAM_STATUS.PUBLISHING);
+        if (Flashphoner.getMediaProviders()[0] === "WSPlayer") {
+            Flashphoner.playFirstSound();
+        }
+        playStream();
+        onPublishing(stream);
+    }).on(STREAM_STATUS.UNPUBLISHED, function () {
+        setStatus("#publishStatus", STREAM_STATUS.UNPUBLISHED);
+        disconnect();
+    }).on(STREAM_STATUS.FAILED, function () {
+        setStatus("#publishStatus", STREAM_STATUS.FAILED);
+        disconnect();
+    }).publish();
 }

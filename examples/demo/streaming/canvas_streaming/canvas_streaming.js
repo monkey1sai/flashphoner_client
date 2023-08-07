@@ -3,8 +3,8 @@ var STREAM_STATUS = Flashphoner.constants.STREAM_STATUS;
 var STREAM_STATUS_INFO = Flashphoner.constants.STREAM_STATUS_INFO;
 var PRELOADER_URL = "../../dependencies/media/preloader.mp4";
 var Browser = Flashphoner.Browser;
-var localVideo;
-var remoteVideo;
+var localVideo; //本地的 Video 用來顯示遠端的畫面
+var remoteVideo; // 這是表示遠端的畫面
 var canvas;
 var previewStream;
 var publishStream;
