@@ -23,14 +23,21 @@ let urlServer = "wss://demo.flashphoner.com:8443";
 let useVideoControls = true;
 
 // 新增 ----- block1 --- for tensorflow
-const constraints = {
-    video: true
-};
+
+const boxid = "img-box";
 let liveView = undefined;
+let _ratio = undefined;
 let _vedio = undefined;
+
 let children = [];
 let session = undefined
-var model =undefined;
+let model =undefined;
+
+let videoHeight = 0;
+let videoWidth = 0;
+let clientHeight = 0;
+let clientWidth = 0;
+
 cocoSsd.load().then(function (loadedModel) {
     model = loadedModel;
   });
@@ -41,7 +48,6 @@ var canvas;
 var canvStream;
 var localVideo;
 var predictStreaming;
-
 
 
 function init_page() {
@@ -62,7 +68,7 @@ function init_page() {
     // Save video display element
     remoteVideo = document.getElementById("remoteVideo");
     canvas = document.getElementById("canvas");
-    canvStream = createCanvasStream();
+    //canvStream = createCanvasStream();
     // Init page elements
     onStopped();
 
@@ -165,10 +171,10 @@ function playStream(session) {
         let video = document.getElementById(stream.id());
         if (!video.hasListeners) {
             video.hasListeners = true;
+            // stream是flashphoner回傳給網頁的rtsp串流物件, stream.id()則是當前網頁播放的元件id
+            // stream.id() 是 flashphoner 新增的元件 <video id="remoteVedio" video>
             setResizeHandler(video, stream, playWidth); //新增 resize 的事件
-            setDataHandler(video, stream, playWidth); //新增 開啟接收data 的事件
-            setSnapshotCompletedHandler(video, stream, playWidth); //新增 開啟接收data 的事件
-
+            video.appendChild(createImgBox());
             if (Browser.isSafariWebRTC()) {
                 setWebkitEventHandlers(video);
             } else {
@@ -182,15 +188,12 @@ function playStream(session) {
         if (Flashphoner.getMediaProviders()[0] == "MSE" && autoplay && Browser.isAndroidFirefox()) {
             let video = document.getElementById(stream.id());
             if (video && video.paused) {
+                console.log('video play logging  <-->')
                 video.play();
             }
         }
         setStatus(STREAM_STATUS.PLAYING);
         onStarted();
-        //新增 _vedioc畫框結束事件 
-        _vedio = document.getElementById(stream.id());
-        _vedio.onloadeddata = predictIframe;
-        console.log("(_vedio) set a stream id: " + stream.id());
     }).on(STREAM_STATUS.STOPPED, function () {
         setStatus(STREAM_STATUS.STOPPED);
         onStopped();
@@ -216,6 +219,7 @@ function playStream(session) {
     });
     console.log("playingStream start playing ----> ")
     playingStream.play();
+    //playingStream.publish();
 }
 
 //show connection or remote stream status
@@ -244,17 +248,9 @@ function setResizeHandler(video, stream, playWidth) {
             // Change aspect ratio to prevent video stretching
             let ratio = streamResolution.width / streamResolution.height;
             let newHeight = Math.floor(playWidth / ratio);
-            resizeVideo(event.target, playWidth, newHeight);
+            resizeVideo(event.target, playWidth, newHeight);            
         }
     });
-}
-
-// Data bound to the stream are received, stream 到 ifram後更改vedio視窗的值
-function setDataHandler(video, stream, playWidth) {
-    return ;
-}
-function  setSnapshotCompletedHandler(video, stream, playWidth){
-    return ;
 }
 
 // iOS/MacOS handlers for fullscreen issues
@@ -298,6 +294,18 @@ function setEventHandlers(video) {
             playingStream.stop();
         }
     });
+
+    video.addEventListener('canplay', function(){
+        videoHeight = video.videoHeight;
+        videoWidth = video.videoWidth;
+        clientHeight = video.clientHeight;
+        clientWidth = video.clientWidth;
+    });
+    video.addEventListener('loadeddata', function(){
+        var detetVedio = video;
+        predictIframe(detetVedio);
+    });
+    
 }
 
 // Object to manage central Play/Stop button
@@ -377,16 +385,16 @@ function hideItem(id) {
     }
 }
 
-function predictIframe(){
-    model.detect(_vedio).then(function (predictions) {
-        liveView = document.getElementById("remoteVideo");
+function predictIframe(detetVedio){
+
+    model.detect(detetVedio).then(function (predictions) {
+        liveView = document.getElementById(boxid);
         console.log('Predictions: ', predictions);
         // Remove any highlighting we did previous frame.
         for (let i = 0; i < children.length; i++) {
             liveView.removeChild(children[i]);
         }
         children.splice(0);
-        
         // Now lets loop through predictions and draw them to the live view if
         // they have a high confidence score.
         for (let n = 0; n < predictions.length; n++) {
@@ -399,6 +407,8 @@ function predictIframe(){
                 p.style = 'margin-left: ' + predictions[n].bbox[0] + 'px; margin-top: '
                     + (predictions[n].bbox[1] - 10) + 'px; width: ' 
                     + (predictions[n].bbox[2] - 10) + 'px; top: 0; left: 0;';
+                p.style.zIndex=2;
+                p.style.position="absolute";
 
                 const highlighter = document.createElement('div');
                 highlighter.setAttribute('class', 'highlighter');
@@ -406,6 +416,9 @@ function predictIframe(){
                     + predictions[n].bbox[1] + 'px; width: ' 
                     + predictions[n].bbox[2] + 'px; height: '
                     + predictions[n].bbox[3] + 'px;';
+                highlighter.style.zIndex=1;
+                highlighter.style.position="absolute";
+                
 
                 liveView.appendChild(highlighter);
                 liveView.appendChild(p);
@@ -413,93 +426,13 @@ function predictIframe(){
                 children.push(p);
             }
         }
-        // Call this function again to keep predicting when the browser is ready.
-        // var dt = new Date();
-        // console.log(dt.toISOString() + "現在 playing stream id" + playingStream.id());
-        // _vedio = playingStream.id();
-        // _vedio.onloadeddata = predictIframe;
         window.requestAnimationFrame(predictIframe);
     });
 }
 
 
-// 在此之前要先把 playing streming publish to this <canvas></canvas> !!!
-function createCanvasStream() {
-    var canvasContext = canvas.getContext("2d");
-    var canvasStream = canvas.captureStream(30);
-    mockVideoElement = document.createElement("video");
-    mockVideoElement.setAttribute("playsinline", "");
-    mockVideoElement.setAttribute("webkit-playsinline", "");
-    //mockVideoElement.src = '../../dependencies/media/test_movie.mp4';
-    mockVideoElement.loop = true;
-    mockVideoElement.muted = true;
-    //var useRequestAnimationFrame = $("#usedAnimFrame").is(':checked');
-    mockVideoElement.addEventListener("play", function () {
-        var $this = this;
-        (function loop() {
-            if (!$this.paused && !$this.ended) {
-                canvasContext.drawImage($this, 0, 0);
-                requestAnimationFrame(loop);
-                // if (useRequestAnimationFrame) {
-                //     requestAnimationFrame(loop);
-                // } else {
-                //     setTimeout(loop, 1000 / 30); // drawing at 30fps
-                // }
-            }
-        })();
-    }, 0);
-    // 移除影像
-    if (!$("#sendVideo").is(':checked')) {
-        canvasStream.removeTrack(canvasStream.getVideoTracks()[0]);
-    }
-    mockVideoElement.play();
-    // 建立聲音來源
-    mockVideoElement.muted = false;
-    try {
-        var audioContext = new (window.AudioContext || window.webkitAudioContext)();
-    } catch (e) {
-        console.warn("Failed to create audio context");
-    }
-    var source = audioContext.createMediaElementSource(mockVideoElement);
-    var destination = audioContext.createMediaStreamDestination();
-    source.connect(destination);
-    canvasStream.addTrack(destination.stream.getAudioTracks()[0]);
-
-
-    if ($("#sendAudio").is(':checked')) {
-        mockVideoElement.muted = false;
-        try {
-            var audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        } catch (e) {
-            console.warn("Failed to create audio context");
-        }
-        var source = audioContext.createMediaElementSource(mockVideoElement);
-        var destination = audioContext.createMediaStreamDestination();
-        source.connect(destination);
-        canvasStream.addTrack(destination.stream.getAudioTracks()[0]);
-    }
-    return canvasStream;
-}
-
-function publishStream(session) {
-    var streamName = "detectorStreaming";
-    var constraints = getConstraints();
-
-    session.createStream({
-        name: streamName,
-        display: localVideo,
-    }).on(STREAM_STATUS.PUBLISHING, function (stream) {
-        setStatus("#publishStatus", STREAM_STATUS.PUBLISHING);
-        if (Flashphoner.getMediaProviders()[0] === "WSPlayer") {
-            Flashphoner.playFirstSound();
-        }
-        playStream();
-        onPublishing(stream);
-    }).on(STREAM_STATUS.UNPUBLISHED, function () {
-        setStatus("#publishStatus", STREAM_STATUS.UNPUBLISHED);
-        disconnect();
-    }).on(STREAM_STATUS.FAILED, function () {
-        setStatus("#publishStatus", STREAM_STATUS.FAILED);
-        disconnect();
-    }).publish();
+function createImgBox(){
+    var box = document.createElement('div');
+    box.id = boxid
+    return box;
 }
