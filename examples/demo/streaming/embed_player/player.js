@@ -18,7 +18,10 @@ let mediaProviders = getUrlParam("mediaProviders") || "";
 // let streamName = getUrlParam("streamName") || "streamName";
 //let urlServer = getUrlParam("urlServer") || setURL();
 let streamName = "rtsp://admin:123456@tc-mega254-1.kddns.info:5544/chID=2&streamType=main"
-let urlServer = "wss://demo.flashphoner.com:8443";
+//let urlServer = "wss://demo.flashphoner.com:8443";
+//let streamName = "rtsp://admin:a-123456@192.168.10.3:554/cam/realmonitor?channel=1%26subtype=1"
+let urlServer = "wss://flashphoner.ezplus.com.tw:8443";
+
 // Will always use a standard video controls
 let useVideoControls = true;
 
@@ -38,9 +41,7 @@ let videoWidth = 0;
 let clientHeight = 0;
 let clientWidth = 0;
 
-cocoSsd.load().then(function (loadedModel) {
-    model = loadedModel;
-  });
+
 
 // 新增 ----- block2 --- for canvas
 
@@ -174,7 +175,7 @@ function playStream(session) {
             // stream是flashphoner回傳給網頁的rtsp串流物件, stream.id()則是當前網頁播放的元件id
             // stream.id() 是 flashphoner 新增的元件 <video id="remoteVedio" video>
             setResizeHandler(video, stream, playWidth); //新增 resize 的事件
-            video.appendChild(createImgBox());
+            remoteVideo.appendChild(createImgBox());
             if (Browser.isSafariWebRTC()) {
                 setWebkitEventHandlers(video);
             } else {
@@ -217,9 +218,7 @@ function playStream(session) {
     }).on(STREAM_EVENT_TYPE.SNAPSHOT_COMPLETED, function(stream){
         console.log("Vedio event(snapshot completed)" + stream);
     });
-    console.log("playingStream start playing ----> ")
     playingStream.play();
-    //playingStream.publish();
 }
 
 //show connection or remote stream status
@@ -295,15 +294,16 @@ function setEventHandlers(video) {
         }
     });
 
-    video.addEventListener('canplay', function(){
-        videoHeight = video.videoHeight;
-        videoWidth = video.videoWidth;
-        clientHeight = video.clientHeight;
-        clientWidth = video.clientWidth;
-    });
     video.addEventListener('loadeddata', function(){
-        var detetVedio = video;
-        predictIframe(detetVedio);
+        console.log("Wait to load detector model ---- >");
+        cocoSsd.load({base: 'mobilenet_v2'}).then(function (loadedModel) {
+            model = loadedModel;
+            console.log('predicting vedio streaming with + model' + '------>');
+            _vedio = video;
+            predictIframe();
+                        
+          });        
+
     });
     
 }
@@ -385,11 +385,10 @@ function hideItem(id) {
     }
 }
 
-function predictIframe(detetVedio){
+function predictIframe(){
 
-    model.detect(detetVedio).then(function (predictions) {
+    model.detect(_vedio).then(function (predictions) {
         liveView = document.getElementById(boxid);
-        console.log('Predictions: ', predictions);
         // Remove any highlighting we did previous frame.
         for (let i = 0; i < children.length; i++) {
             liveView.removeChild(children[i]);
@@ -397,25 +396,29 @@ function predictIframe(detetVedio){
         children.splice(0);
         // Now lets loop through predictions and draw them to the live view if
         // they have a high confidence score.
+        var heightScale = (_vedio.clientHeight/_vedio.videoHeight);
+        var widthScale = (_vedio.clientWidth/_vedio.videoWidth);
+
+
         for (let n = 0; n < predictions.length; n++) {
         // If we are over 66% sure we are sure we classified it right, draw it!
             if (predictions[n].score > 0.66) {
+                console.log('Predictions class: ', predictions[n]);
                 const p = document.createElement('p');
-                p.innerText = predictions[n].class  + ' - with ' 
-                    + Math.round(parseFloat(predictions[n].score) * 100) 
-                    + '% confidence.';
-                p.style = 'margin-left: ' + predictions[n].bbox[0] + 'px; margin-top: '
-                    + (predictions[n].bbox[1] - 10) + 'px; width: ' 
-                    + (predictions[n].bbox[2] - 10) + 'px; top: 0; left: 0;';
+                p.innerText = predictions[n].class + Math.round(parseFloat(predictions[n].score) * 100) + '%';
+                p.style = 'margin-left: ' + predictions[n].bbox[0]*widthScale + 'px; margin-top: '
+                    + (predictions[n].bbox[1]*heightScale - 10) + 'px; width: ' 
+                    + (predictions[n].bbox[2]*widthScale - 10) + 'px; top: 0; left: 0;';
                 p.style.zIndex=2;
                 p.style.position="absolute";
 
                 const highlighter = document.createElement('div');
                 highlighter.setAttribute('class', 'highlighter');
-                highlighter.style = 'left: ' + predictions[n].bbox[0] + 'px; top: '
-                    + predictions[n].bbox[1] + 'px; width: ' 
-                    + predictions[n].bbox[2] + 'px; height: '
-                    + predictions[n].bbox[3] + 'px;';
+                highlighter.style = 'left: ' + predictions[n].bbox[0] * widthScale // 左上原點x 座標
+                    + 'px; top: ' + predictions[n].bbox[1]* heightScale     // 左上 原點y 座標
+                    + 'px; width: ' + predictions[n].bbox[2] * widthScale   // 左上往右邊加寬邊的長度 
+                    + 'px; height: ' + predictions[n].bbox[3] * heightScale // 左上往下方加高的長度
+                    + 'px;';
                 highlighter.style.zIndex=1;
                 highlighter.style.position="absolute";
                 
