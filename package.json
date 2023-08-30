@@ -21,6 +21,7 @@
   },
   "homepage": "https://github.com/flashphoner/flashphoner_client#readme",
   "dependencies": {
-    "@flashphoner/websdk": "^2.0.231"
+    "@flashphoner/websdk": "^2.0.231",
+    "@tensorflow/tfjs": "^4.10.0"
   }
 }

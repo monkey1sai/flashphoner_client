@@ -9,17 +9,31 @@
 
     <title>Player</title>
        <!-- ttf 最小版本 -->
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs/dist/tf.min.js" type="text/javascript"></script>
-      <!-- SSD -->
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd" type="text/javascript"></script>
+    <!-- <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs/dist/tf.min.js" type="text/javascript"></script>-->
+    <!-- <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd" type="text/javascript"></script> -->
+    
 
+    <!-- 仔入模組 -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs" type="text/javascript"> </script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-converter" type="text/javascript"></script>
+
+
+
+    <!-- PYTHON MODEL -->
+    <!-- <script src="../../../../tfConvertModel/model.json" type="model"></script> -->
+      
+    <!-- <script type="text/javascript" src="../../../../node_modules/@tensorflow/tfjs"></script> -->
+    
+
+
+    
     <script type="text/javascript" src="../../../../node_modules/@flashphoner/websdk/flashphoner.js"></script>
     <script type="text/javascript" src="./utils.js"></script>
     <script type="text/javascript" src="./player.js"></script>
     <!-- 假貓圖片 -->
     <img id="img" src="https://i.imgur.com/jlFgGpe.jpg" crossOrigin='anonymous' border="0" style="display:none"/> 
 </head>
-<body onload="init_page()">
+<!-- <body onload="init_page()"> -->
 
 <div class="video" id="container">
     <div id="status"></div>
@@ -34,7 +48,41 @@
 </body>
 <script>
     const img = document.getElementById('img');
-      // Load the model.
+    //const model_url = "https://iottest.ezplus.com.tw/iot-gateway/storage/tfjs/model.json";
+    
+    //import * as tf from '@tensorflow/tfjs';
+    //import { loadGraphModel } from '@tensorflow/tfjs-converter';
+
+
+    const weightManifestUrl = "https://iottest.ezplus.com.tw/iot-gateway/storage/tfjs/model.json";
+    //let model = undefined;
+    
+    //console.log("讀取照片轉換張量成功:"+ imgpix);
+
+    async function load(){
+      tf.loadGraphModel(weightManifestUrl).then((tfpyModel) => {
+
+        frompix = tf.browser.fromPixels(img);
+        resized = tf.image.resizeBilinear(frompix.clone(), [frompix.shape[0], frompix.shape[1]]);
+        casted = resized.cast('int32');
+        expanded = casted.expandDims(0);
+
+        tfpyModel.executeAsync(expanded).then((detections) => {
+          console.log(detections);
+        }).catch((err) => {
+          console.log(err);
+        });
+
+      }).catch((err) => {
+        console.log(err);
+      });
+    }
+
+    load();
+
+
+
+    // Load the model.
     // cocoSsd.load().then(model => {
     //     // detect objects in the image.
     //     model.detect(img).then(predictions => {

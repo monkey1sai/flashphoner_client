@@ -296,7 +296,7 @@ function setEventHandlers(video) {
 
     video.addEventListener('loadeddata', function(){
         console.log("Wait to load detector model ---- >");
-        cocoSsd.load({base: 'mobilenet_v2'}).then(function (loadedModel) {
+        cocoSsd.load({base: 'lite_mobilenet_v2'}).then(function (loadedModel) {
             model = loadedModel;
             console.log('predicting vedio streaming with + model' + '------>');
             _vedio = video;
