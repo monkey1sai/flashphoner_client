@@ -25,6 +25,10 @@ video:-webkit-full-screen {
     border-radius: 1px;
 }
 
+video::-webkit-media-controls-timeline{
+    display:none;
+}
+
 /* Prevent stretched picture in full screen mode */
 canvas:-webkit-full-screen {
     width: initial;
@@ -105,6 +109,109 @@ canvas:-moz-full-screen {
     z-index: 1!important;
     position: absolute;
   }
+
+  .player-controls {
+    display:none;
+    position: absolute;
+    left: 0;
+    bottom:0;
+    width: 100%;
+    /* transform: translateY(100%) translateY(-5px); */
+    transition:all .3s;
+    flex-wrap:wrap;
+    background:rgba(0,0,0,0.4);
+    color: #fff;
+    z-index: 2147483648; 
+    /* This is ridiculous so that it overrides the shadow 
+    dom and shows the custom player in full screen mode instead */
+  }
+
+  .remoteVideo:hover .player-controls {
+    /* transform: translateY(0); */
+    display: flex;
+  }
+
+  .player-button {
+    background:none;
+    border:0;
+    line-height:1;
+    color:white;
+    text-align: center;
+    outline:0;
+    padding: 0;
+    cursor:pointer;
+    max-width:40px;
+    margin-left:2%;
+  }
+
+  .mute {
+    /* margin: auto 0px; */
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .mute img {
+    /* background:none; */
+    filter:invert(100%);
+    display: block;
+    width: 100%;
+  }
+  
+  .mute.muted {
+    opacity: 0.5;
+  }
+
+  .mute .slash {
+    position: absolute;
+    width: 2px;
+    height: 100%;
+    background: #ffffff;
+    transform: rotate(-50deg);
+    display: none;
+  }
+  
+  .mute.muted .slash {
+    display: block;
+  }
+
+  .volume-button {
+    background: transparent;
+    border: none;
+    max-width: 30px;
+    color:white;
+  }
+
+  .player-sound {
+    margin-left: 1%;
+  }
+
+  .fullscreen-btn {
+    background:none;
+    border:0;
+    max-width: 30px;
+    color:white;
+    font-size: 10px;
+    /* margin: auto 0px; */
+    padding: 0 7px;
+  }
+  
+  .fullscreen-btn {
+    margin-right: 2%;
+    margin-left: auto;
+    float: right;
+    border-radius: 2px;
+  }
+
+  .fullscreen-btn img {
+    /* background:none; */
+    filter:invert(100%);
+    display: block;
+    width: 100%;
+  }
+
+
   
 @keyframes spin {
     0% { transform: rotate(0deg); }

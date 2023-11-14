@@ -11,19 +11,20 @@ let remoteVideo;
 let playingStream;
 let isStopped = true;
 
-
 let autoplay = eval(getUrlParam("autoplay")) || false;
 let resolution = getUrlParam("resolution");
 let mediaProviders = getUrlParam("mediaProviders") || "";
 // let streamName = getUrlParam("streamName") || "streamName";
 //let urlServer = getUrlParam("urlServer") || setURL();
-let streamName = "rtsp://admin:123456@tc-mega254-1.kddns.info:5544/chID=2&streamType=main"
+// let streamName = "rtsp://admin:123456@tc-mega254-1.kddns.info:5544/chID=2&streamType=main"
+// let streamName = "rtsp://admin:123456@tc-mega254-1.kddns.info:5544/chID=5&streamType=sub"
+
 //let urlServer = "wss://demo.flashphoner.com:8443";
-//let streamName = "rtsp://admin:a-123456@192.168.10.3:554/cam/realmonitor?channel=1%26subtype=1"
+let streamName = "rtsp://admin:a-123456@192.168.10.7:554/cam/realmonitor?channel=1%26subtype=0"
 let urlServer = "wss://flashphoner.ezplus.com.tw:8443";
 
 // Will always use a standard video controls
-let useVideoControls = true;
+let useVideoControls = false;
 
 // 新增 ----- block1 --- for tensorflow
 
@@ -50,6 +51,13 @@ var canvStream;
 var localVideo;
 var predictStreaming;
 
+// video controls
+let playerControl;
+let fullscreen;
+let playButton;
+let mute;
+let playerSound;
+
 
 function init_page() {
     //init api
@@ -69,6 +77,14 @@ function init_page() {
     // Save video display element
     remoteVideo = document.getElementById("remoteVideo");
     canvas = document.getElementById("canvas");
+
+    // control
+    playerControl = document.getElementById('playControls');
+    fullscreen    = document.getElementById("fullscreenButton");
+    playButton    = document.getElementById("playButton");
+    mute          = document.getElementById("mute");
+    playerSound   = playerControl.querySelectorAll(".player-sound");
+
     //canvStream = createCanvasStream();
     // Init page elements
     onStopped();
@@ -76,12 +92,14 @@ function init_page() {
     // Start playback if autoplay required
     if (autoplay) {
         centralButton.click();
+        playButton.innerHTML = '❚❚';
     }
 }
 
 function onStarted() {
     isStopped = false;
     centralButton.prepareToStop();
+    playButton.innerHTML = '❚❚';
 }
 
 function onStopped() {
@@ -170,8 +188,24 @@ function playStream(session) {
             hideItem('preloader');
         }
         let video = document.getElementById(stream.id());
+
+        // console.log(video)
+        // video.onfullscreen = function fullScreen(event) {
+        //     let elem = event.target;
+        //     console.log(remoteVideo,elem)
+        //     if(!document.webkitFullscreenElement) {
+        //         remoteVideo.webkitRequestFullScreen();
+        //     } else {
+        //         document.webkitExitFullscreen();
+        //     }
+        // }
+
         if (!video.hasListeners) {
             video.hasListeners = true;
+
+            // control事件
+            setPlayEvent(video);
+
             // stream是flashphoner回傳給網頁的rtsp串流物件, stream.id()則是當前網頁播放的元件id
             // stream.id() 是 flashphoner 新增的元件 <video id="remoteVedio" video>
             setResizeHandler(video, stream, playWidth); //新增 resize 的事件
@@ -294,15 +328,36 @@ function setEventHandlers(video) {
         }
     });
 
-    video.addEventListener('loadeddata', function(){
+    video.addEventListener("webkitbeginfullscreen", function (event) {
+        console.log(event)
+        // // isFullscreen = true;
+        // remoteVideo2 = document.getElementById("remoteVideo");
+        // remoteVideo2.webkitRequestFullScreen();
+    }); 
+
+    video.addEventListener('loadeddata', async function(){
         console.log("Wait to load detector model ---- >");
+
         cocoSsd.load({base: 'lite_mobilenet_v2'}).then(function (loadedModel) {
             model = loadedModel;
             console.log('predicting vedio streaming with + model' + '------>');
             _vedio = video;
             predictIframe();
-                        
-          });        
+          });
+        
+        // console.log(cocoSsd)
+        // await cocoSsd.load({
+        //     base: 'lite_mobilenet_v2', 
+        //     // modelUrl: 'https://storage.googleapis.com/tfjs-models/savedmodel/ssdlite_mobilenet_v2/model.json'
+        //     // modelUrl: 'https://storage.googleapis.com/tfjs-models/savedmodel/ssd_mobilenet_v2/model.json'
+        //     // modelUrl: 'https://raw.githubusercontent.com/CAipswnx/test/main/test6/model.json'
+        // }).then(function (loadedModel) {
+        //     console.log(loadedModel);
+        //     model = loadedModel;
+        //     console.log('predicting vedio streaming with + model' + '------>');
+        //     _vedio = video;
+        //     predictIframe();
+        //   });
 
     });
     
@@ -399,6 +454,12 @@ function predictIframe(){
         var heightScale = (_vedio.clientHeight/_vedio.videoHeight);
         var widthScale = (_vedio.clientWidth/_vedio.videoWidth);
 
+        // 全螢幕偏移值
+        var widthOffset = 0;
+        if (!(!document.fullscreenElement && !document.mozFullScreenElement && !document.webkitFullscreenElement && !document.msFullscreenElement)) {
+            widthScale = (_vedio.clientHeight/_vedio.videoHeight);
+            widthOffset = (_vedio.clientWidth-(_vedio.videoWidth * widthScale))/2
+        }
 
         for (let n = 0; n < predictions.length; n++) {
         // If we are over 66% sure we are sure we classified it right, draw it!
@@ -406,7 +467,7 @@ function predictIframe(){
                 console.log('Predictions class: ', predictions[n]);
                 const p = document.createElement('p');
                 p.innerText = predictions[n].class + Math.round(parseFloat(predictions[n].score) * 100) + '%';
-                p.style = 'margin-left: ' + predictions[n].bbox[0]*widthScale + 'px; margin-top: '
+                p.style = 'margin-left: ' + (predictions[n].bbox[0]*widthScale + widthOffset) + 'px; margin-top: '
                     + (predictions[n].bbox[1]*heightScale - 10) + 'px; width: ' 
                     + (predictions[n].bbox[2]*widthScale - 10) + 'px; top: 0; left: 0;';
                 p.style.zIndex=2;
@@ -414,7 +475,7 @@ function predictIframe(){
 
                 const highlighter = document.createElement('div');
                 highlighter.setAttribute('class', 'highlighter');
-                highlighter.style = 'left: ' + predictions[n].bbox[0] * widthScale // 左上原點x 座標
+                highlighter.style = 'left: ' + (predictions[n].bbox[0] * widthScale + widthOffset) // 左上原點x 座標
                     + 'px; top: ' + predictions[n].bbox[1]* heightScale     // 左上 原點y 座標
                     + 'px; width: ' + predictions[n].bbox[2] * widthScale   // 左上往右邊加寬邊的長度 
                     + 'px; height: ' + predictions[n].bbox[3] * heightScale // 左上往下方加高的長度
@@ -430,12 +491,87 @@ function predictIframe(){
             }
         }
         window.requestAnimationFrame(predictIframe);
-    });
+    }).catch (function (e) {
+        console.log(e);
+    })
 }
 
 
-function createImgBox(){
+function createImgBox() {
     var box = document.createElement('div');
     box.id = boxid
     return box;
+}
+
+function setPlayEvent(video) {
+    playButton.addEventListener('click', function () {
+        //當影片狀態為暫停的時候
+        if (video.paused) {
+            //播放影片
+            playingStream.play();
+            //將播放鈕圖示改為暫停鈕圖示                     
+            playButton.innerHTML = '❚❚';
+        //當影片是播放的時候                         
+        } else {
+            //暫停影片
+            playingStream.stop();
+            //將暫停鈕圖示改為播放鈕圖示     
+            playButton.innerHTML = '►';
+        };
+    });
+    video.addEventListener('click', function () {
+        //當影片狀態為暫停的時候
+        if (video.paused) {
+            //播放影片
+            playingStream.play();
+            //將播放鈕圖示改為暫停鈕圖示                     
+            playButton.innerHTML = '❚❚';
+        //當影片是播放的時候                         
+        } else {
+            //暫停影片
+            playingStream.stop();
+            //將暫停鈕圖示改為播放鈕圖示     
+            playButton.innerHTML = '►';
+        };
+    });
+
+    mute.addEventListener('click', function ()  {
+        video.muted = !video.muted;
+        mute.classList.toggle('muted');
+    })
+
+    // 音量
+    playerSound.forEach(range => {
+        range.addEventListener('input', function () {
+            video.volume = this.value;
+        });
+    })
+
+    // 全螢幕控制
+    fullscreen.addEventListener('click', function () {
+        let image = fullscreen.querySelector('img');
+        if (!document.fullscreenElement && !document.mozFullScreenElement && !document.webkitFullscreenElement && !document.msFullscreenElement) {
+            if(video.requestFullScreen){
+                remoteVideo.requestFullScreen();
+            } else if(video.webkitRequestFullScreen){
+                remoteVideo.webkitRequestFullScreen();
+            } else if(video.mozRequestFullScreen){
+                remoteVideo.mozRequestFullScreen();
+            }
+            fullscreen.title = '結束全螢幕';
+            image.src = 'images/exitfullscreen.png';
+        } else {
+            if (document.exitFullscreen) {
+              document.exitFullscreen();
+            } else if (document.msExitFullscreen) {
+              document.msExitFullscreen();
+            } else if (document.mozCancelFullScreen) {
+              document.mozCancelFullScreen();
+            } else if (document.webkitExitFullscreen) {
+              document.webkitExitFullscreen();
+            }
+            fullscreen.title = '全螢幕';
+            image.src = 'images/fullscreen.png';
+        }
+    });
 }

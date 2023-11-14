@@ -8,7 +8,7 @@
 			"type": "chrome",
 			"request": "launch",
 			"name": "Open player.html",
-			"file": "c:\\.vsconde\\flashphoner_client\\examples\\demo\\streaming\\embed_player\\player.html"
+			"file": "C:\\.vscode\\flashphoner_client\\examples\\demo\\streaming\\embed_player\\player.html"
 		}
 	]
 }
